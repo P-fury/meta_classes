@@ -1,0 +1,53 @@
+
+# General macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE configurations
+.idea/
+.vscode/
+
+# Python files
+**/*.pyc
+__pycache__/
+.mypy_cache/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+.env-default
+
+# Thumbnails
+._*
+
+# Icon files (macOS-specific)
+Icon\r\r
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100/
+.fseventsd/
+.Spotlight-V100/
+.TemporaryItems/
+.Trashes/
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP shares
+.AppleDB/
+.AppleDesktop/
+Network Trash Folder/
+Temporary Items/
+.apdisk
+
+
+# pytest
+.coverage
