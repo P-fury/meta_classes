@@ -34,9 +34,43 @@ class TracingMeta(type):
 
         print()
 
+    def metamethod(cls):
+        print("TracingMeta.metamethod")
+        print(f"{cls=}")
+
+
+class TracingSpecialMeta(type):
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        print("TracingSpecialMeta.__new__")
+        print(f"{mcs = }")
+        print(f"{name = }")
+        print(f"{bases = }")
+        print(f"{namespace = }")
+        print(f"{kwargs = }")
+        cls = super().__new__(mcs, name, bases, namespace)
+        print(f"{cls = }")
+        print()
+        return cls
+
+
+class TracingPro(TracingMeta, TracingSpecialMeta):
+    pass
+
 
 class Widget(object, metaclass=TracingMeta, magic=42):
     the_answer = 42
 
     def action(self, message):
         print(message)
+
+
+class SpecialWidget(Widget, metaclass=TracingPro):
+    pass
+
+
+Widget.metamethod()
+SpecialWidget.metamethod()
+
+w = Widget()
+# w.metamethod()
+# w.action('42')
