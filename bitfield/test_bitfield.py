@@ -8,6 +8,9 @@ class BitFieldBase:
         self._validate_arg_names(kwargs)
         self._validate_arg_values(kwargs)
 
+        for field_name in type(self)._field_widths.keys():
+            setattr(self, field_name, kwargs.get(field_name, 0))
+
     def _validate_arg_names(self, kwargs):
         mismatch_args = set(kwargs) - set(type(self)._field_widths)
 
@@ -31,8 +34,25 @@ class BitFieldBase:
                     f"range {min_value}-{max_value} for a {width} bit field"
                 )
 
+    def __int__(self):
+        # TODO: repair adding sequence of types
+        accumulator = 0
+        shift = 0
 
+        for name, width in type(self)._field_widths.items():
+            value = getattr(self, name)
+            accumulator |= value << shift
+            shift += width
+        return accumulator
 
+    def to_bytes(self):
+        v = int(self)
+        num_bytes = (sum(type(self)._field_widths.values()) + 7) // 8
+        return v.to_bytes(
+            length=num_bytes,
+            byteorder='little',
+            signed=False,
+        )
 
 
 class BitFieldMeta(type):
@@ -119,3 +139,47 @@ def test_initialization_out_of_upper_field_range_raises_value_error():
     with pytest.raises(ValueError, match=re.escape("DateBitField field 'day' got value 32 which is out"
                                                    " of range 0-31 for a 5 bit field")):
         DateBitField(day=32)
+
+
+def test_fields_are_default_initialized_to_zero():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+
+    d = DateBitField()
+    assert d.day == 0
+
+
+def test_initialized_field_values_can_be_retrieved():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+        month: 4
+        year: 14
+
+    d = DateBitField(month=5, year=14)
+    assert d.day == 0 and d.month == 5 and d.year == 14
+
+
+def test_conversion_to_integer():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+        month: 4
+        year: 14
+
+    d = DateBitField(day=25, month=3, year=2010)
+    i = int(d)
+
+    assert i == 0b00011111011010_0011_11001
+    # year_month_day
+
+
+def test_conversion_to_bytes():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+        month: 4
+        year: 14
+
+    d = DateBitField(day=25, month=3, year=2010)
+    b = d.to_bytes()
+
+    assert b == (0b00011111011010_0011_11001).to_bytes(3, 'little', signed=False)
+    # year_month_day
