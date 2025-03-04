@@ -2,85 +2,7 @@ import re
 
 import pytest
 
-
-class BitFieldBase:
-    def __init__(self, **kwargs):
-        self._validate_arg_names(kwargs)
-        self._validate_arg_values(kwargs)
-
-        for field_name in type(self)._field_widths.keys():
-            setattr(self, field_name, kwargs.get(field_name, 0))
-
-    def _validate_arg_names(self, kwargs):
-        mismatch_args = set(kwargs) - set(type(self)._field_widths)
-
-        if len(mismatch_args) != 0:
-            mismatched_args_txt = ", ".join(repr(arg_name) for arg_name in kwargs if arg_name in mismatch_args)
-
-            raise TypeError(
-                f'{type(self).__name__}.__init__() got unexpected'
-                f' keyword argument{'' if len(mismatch_args) == 1 else 's'}: {mismatched_args_txt}'
-            )
-
-    def _validate_arg_values(self, kwargs):
-        for keyword, value in kwargs.items():
-            width = type(self)._field_widths[keyword]
-            min_value = 0
-            max_value = 2 ** width - 1
-            if not (min_value <= value <= max_value):
-                raise ValueError(
-                    f"{type(self).__name__} field {keyword!r} "
-                    f"got value {value!r} which is out of "
-                    f"range {min_value}-{max_value} for a {width} bit field"
-                )
-
-    def __int__(self):
-        # TODO: repair adding sequence of types
-        accumulator = 0
-        shift = 0
-
-        for name, width in type(self)._field_widths.items():
-            value = getattr(self, name)
-            accumulator |= value << shift
-            shift += width
-        return accumulator
-
-    def to_bytes(self):
-        v = int(self)
-        num_bytes = (sum(type(self)._field_widths.values()) + 7) // 8
-        return v.to_bytes(
-            length=num_bytes,
-            byteorder='little',
-            signed=False,
-        )
-
-
-class BitFieldMeta(type):
-    def __new__(mcs, name, bases, namespace, **kwargs):
-        try:
-            namespace["_field_widths"] = namespace["__annotations__"]
-        except KeyError as e:
-            raise TypeError(f'{name} with metaclass "{mcs.__name__}" has no fields.') from e
-
-        for field_name, width in namespace['_field_widths'].items():
-            if field_name.startswith('_'):
-                raise TypeError(
-                    f"{name} field {field_name!r} begins with an underscore"
-                )
-
-            if not isinstance(width, int):
-                raise TypeError(
-                    f"{name} field {field_name!r} has annotation {width!r} that is not an integer"
-                )
-
-            if width < 1:
-                raise TypeError(
-                    f"{name} field {field_name!r} has non-positive field width {width!r}"
-                )
-
-        bases = (BitFieldBase,) + bases
-        return super().__new__(mcs, name, bases, namespace)
-
+from converter.converter import BitFieldMeta
 
 def test_define_bitfield():
     class DateBitField(metaclass=BitFieldMeta):
@@ -183,3 +105,32 @@ def test_conversion_to_bytes():
 
     assert b == (0b00011111011010_0011_11001).to_bytes(3, 'little', signed=False)
     # year_month_day
+
+
+def test_assigning_to_field_sets_values():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+
+    d = DateBitField()
+    d.day = 26
+    assert d.day == 26
+
+
+def test_assigning_out_of_upper_range_value_to_field_raises_type_error():
+    class DateBitField(metaclass=BitFieldMeta):
+        day: 5
+
+    d = DateBitField()
+
+    with pytest.raises(ValueError, match=re.escape("DateBitField field 'day' got value 32 which is out"
+                                                   " of range 0-31 for a 5 bit field")):
+        d.day = 32
+
+
+# TODO: validate field values are integers
+# TODO: named constructor to construct from in or bytes objects
+# TODO: support a metaclass keyword argument revers=True to reverse field order
+# TODO: provide endianness control when converting bitfields to integers
+# TODO: prevent field deletion by overriding __delete__ on the descriptor
+class DateBitField(metaclass=BitFieldMeta):
+    day: 5
