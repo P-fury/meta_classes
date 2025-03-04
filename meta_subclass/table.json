@@ -1,0 +1,14 @@
+[
+  {
+    "time": 12333,
+    "temperature": 5
+  },
+  {
+    "time": 20,
+    "temperature": 6
+  },
+  {
+    "time": 30,
+    "temperature": 7
+  }
+]
